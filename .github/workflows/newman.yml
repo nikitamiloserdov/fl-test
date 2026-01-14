@@ -1,12 +1,11 @@
 name: API tests (Newman)
 
 on:
-  # Ручной запуск
   workflow_dispatch:
 
-  # Пуши и PR
   push:
     branches: [ "main" ]
+
   pull_request:
     branches: [ "main" ]
 
@@ -22,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      checks: write
       contents: write
+      checks: write
       pull-requests: read
 
     steps:
@@ -42,16 +41,10 @@ jobs:
           node-version: 20
 
       # =========================================================
-      # 📦 Newman
+      # 📦 Newman + HTML reporter
       # =========================================================
       - name: 📦 Install Newman
-        run: npm install -g newman
-
-      # =========================================================
-      # 🧾 HTML reporter
-      # =========================================================
-      - name: 🧾 Install Newman HTML Reporter
-        run: npm install -g newman-reporter-htmlextra
+        run: npm install -g newman newman-reporter-htmlextra
 
       # =========================================================
       # 🆔 RUN_ID
@@ -62,21 +55,16 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       # =========================================================
-      # 🏷️ Определяем RUN_TYPE (Manual / Auto / Night)
+      # 🏷️ RUN_TYPE (Manual / Auto / Night)
       # =========================================================
       - name: 🏷️ Determine RUN_TYPE
         run: |
-          # 1. Manual имеет абсолютный приоритет
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             RUN_TYPE="Manual"
           else
-            # 2. Авто-запуск
             RUN_TYPE="Auto"
-
-            # Night только для cron
             if [ "${{ github.event_name }}" = "schedule" ]; then
               HOUR_UTC=$(date -u +"%H")
-              # Night = 22:00–07:00 МСК → 19–04 UTC
               if [ "$HOUR_UTC" -ge 19 ] || [ "$HOUR_UTC" -lt 4 ]; then
                 RUN_TYPE="Night"
               fi
@@ -84,7 +72,6 @@ jobs:
           fi
 
           echo "RUN_TYPE=$RUN_TYPE" >> $GITHUB_ENV
-          echo "Run type: $RUN_TYPE"
 
       # =========================================================
       # ▶️ Newman run
@@ -93,34 +80,23 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p reports
-          mkdir -p public/runs/${RUN_ID}__${RUN_TYPE}
+          mkdir -p public/runs/${RUN_ID}
 
           newman run "postman/Flipper API.postman_collection.json" \
-            --timeout-request 60000 \
-            --delay-request 200 \
             --reporters cli,htmlextra,junit \
-            --reporter-htmlextra-export reports/newman-report.html \
+            --reporter-htmlextra-export reports/index.html \
             --reporter-junit-export reports/newman-report.xml
 
-          cp reports/newman-report.html public/runs/${RUN_ID}__${RUN_TYPE}/index.html
+          cp reports/index.html public/runs/${RUN_ID}/index.html
 
       # =========================================================
-      # 📂 Подготовка результатов для TestOps
+      # 📂 Prepare results for TestOps
       # =========================================================
       - name: 📂 Prepare TestOps results
         if: always()
         run: |
           mkdir -p testops-results
           cp reports/newman-report.xml testops-results/
-
-      # =========================================================
-      # 📊 JUnit Summary
-      # =========================================================
-      - name: 📊 Publish test results (JUnit → Summary)
-        if: always()
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: reports/newman-report.xml
 
       # =========================================================
       # 📥 Install allurectl
@@ -133,7 +109,7 @@ jobs:
           sudo mv allurectl /usr/local/bin/allurectl
 
       # =========================================================
-      # 📊 Upload to Allure TestOps (БЕЗ ТЕГОВ)
+      # 📊 Upload to Allure TestOps (без тегов)
       # =========================================================
       - name: 📊 Upload results to Allure TestOps
         if: always()
@@ -160,7 +136,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: 📦 Install Python dependencies
+      - name: 📦 Install Python deps
         if: always()
         run: pip install requests
 
@@ -179,7 +155,7 @@ jobs:
         run: python scripts/send_telegram_report.py
 
       # =========================================================
-      # 🚀 GitHub Pages
+      # 🚀 Deploy to GH Pages (НА КАЖДЫЙ RUN)
       # =========================================================
       - name: 🚀 Deploy to GitHub Pages
         if: always()
@@ -193,10 +169,10 @@ jobs:
           git checkout gh-pages || git checkout --orphan gh-pages
 
           mkdir -p runs
-          cp -r /tmp/public/runs/${RUN_ID}__${RUN_TYPE} runs/
+          cp -r /tmp/public/runs/${RUN_ID} runs/
 
           touch .nojekyll
 
           git add runs .nojekyll
-          git commit -m "deploy: ${RUN_ID} (${RUN_TYPE})" || echo "Nothing to commit"
+          git commit -m "deploy run ${RUN_ID}" || echo "Nothing to commit"
           git push origin gh-pages
