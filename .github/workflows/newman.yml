@@ -27,16 +27,10 @@ jobs:
 
     steps:
       # =========================================================
-      # 📥 Checkout
+      # 📥 Checkout main
       # =========================================================
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
-
-      # =========================================================
-      # 🔧 Install jq (нужно для парсинга JSON)
-      # =========================================================
-      - name: 🔧 Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
 
       # =========================================================
       # 🟢 Node.js
@@ -47,7 +41,7 @@ jobs:
           node-version: 20
 
       # =========================================================
-      # 📦 Newman
+      # 📦 Newman + HTML reporter
       # =========================================================
       - name: 📦 Install Newman
         run: npm install -g newman newman-reporter-htmlextra
@@ -61,7 +55,7 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       # =========================================================
-      # 🏷️ RUN_TYPE
+      # 🏷️ RUN_TYPE (Manual / Auto / Night)
       # =========================================================
       - name: 🏷️ Determine RUN_TYPE
         run: |
@@ -76,10 +70,11 @@ jobs:
               fi
             fi
           fi
+
           echo "RUN_TYPE=$RUN_TYPE" >> $GITHUB_ENV
 
       # =========================================================
-      # ▶️ Run Newman
+      # ▶️ Newman run
       # =========================================================
       - name: ▶️ Run Postman collection
         continue-on-error: true
@@ -95,7 +90,7 @@ jobs:
           cp reports/index.html public/runs/${RUN_ID}/index.html
 
       # =========================================================
-      # 📂 Prepare TestOps results
+      # 📂 Prepare results for TestOps
       # =========================================================
       - name: 📂 Prepare TestOps results
         if: always()
@@ -114,27 +109,7 @@ jobs:
           sudo mv allurectl /usr/local/bin/allurectl
 
       # =========================================================
-      # 🚀 Create Allure TestOps launch (ВАЖНО)
-      # =========================================================
-      - name: 🚀 Create Allure TestOps launch
-        if: always()
-        env:
-          TESTOPS_ENDPOINT: ${{ secrets.TESTOPS_ENDPOINT }}
-          TESTOPS_TOKEN: ${{ secrets.TESTOPS_TOKEN }}
-          TESTOPS_PROJECT_ID: ${{ secrets.TESTOPS_PROJECT_ID }}
-        run: |
-          export ALLURE_ENDPOINT=${TESTOPS_ENDPOINT}
-          export ALLURE_TOKEN=${TESTOPS_TOKEN}
-
-          LAUNCH_JSON=$(allurectl launch create \
-            --project-id ${TESTOPS_PROJECT_ID} \
-            --launch-name "Flipper API • ${RUN_TYPE} • ${RUN_ID}" \
-            --output json)
-
-          echo "ALLURE_LAUNCH_ID=$(echo $LAUNCH_JSON | jq -r '.ID')" >> $GITHUB_ENV
-
-      # =========================================================
-      # 📊 Upload results to launch
+      # 📊 Upload to Allure TestOps (без тегов)
       # =========================================================
       - name: 📊 Upload results to Allure TestOps
         if: always()
@@ -148,9 +123,9 @@ jobs:
 
           allurectl upload testops-results \
             --project-id ${TESTOPS_PROJECT_ID} \
-            --launch-id ${ALLURE_LAUNCH_ID}
+            --launch-name "Flipper API • ${RUN_TYPE} • ${RUN_ID}"
 
-          echo "ALLURE_LAUNCH_URL=${TESTOPS_ENDPOINT}/project/${TESTOPS_PROJECT_ID}/launches/${ALLURE_LAUNCH_ID}" >> $GITHUB_ENV
+          echo "ALLURE_LAUNCH_URL=${TESTOPS_ENDPOINT}/project/${TESTOPS_PROJECT_ID}/launches" >> $GITHUB_ENV
 
       # =========================================================
       # 🐍 Python
@@ -180,7 +155,7 @@ jobs:
         run: python scripts/send_telegram_report.py
 
       # =========================================================
-      # 🚀 Deploy to GH Pages
+      # 🚀 Deploy to GH Pages (НА КАЖДЫЙ RUN)
       # =========================================================
       - name: 🚀 Deploy to GitHub Pages
         if: always()
