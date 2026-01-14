@@ -9,7 +9,6 @@ RUN_TYPE = os.environ.get("RUN_TYPE", "Auto")
 REPO = os.environ.get("GITHUB_REPOSITORY", "unknown")
 ALLURE_LAUNCH_URL = os.environ.get("ALLURE_LAUNCH_URL")
 
-
 REPORT_PATH = "reports/newman-report.xml"
 
 # --- Parse JUnit ---
@@ -61,4 +60,3 @@ response = requests.post(
 )
 
 response.raise_for_status()
-
