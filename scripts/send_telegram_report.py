@@ -5,8 +5,10 @@ import xml.etree.ElementTree as ET
 BOT_TOKEN = os.environ["TGBOT"]
 CHAT_ID = os.environ["CHATID"]
 RUN_ID = os.environ["RUN_ID"]
+RUN_TYPE = os.environ.get("RUN_TYPE", "Auto")
 REPO = os.environ.get("GITHUB_REPOSITORY", "unknown")
 ALLURE_LAUNCH_URL = os.environ.get("ALLURE_LAUNCH_URL")
+
 
 REPORT_PATH = "reports/newman-report.xml"
 
