@@ -35,6 +35,11 @@ jobs:
 
       - name: ▶️ Run Postman collection
         run: |
+          mkdir -p reports
+        
           newman run "postman/Flipper API.postman_collection.json" \
             --timeout-request 60000 \
-            --delay-request 200
+            --delay-request 200 \
+            --reporters cli,htmlextra,junit \
+            --reporter-htmlextra-export reports/newman-report.html \
+            --reporter-junit-export reports/newman-report.xml
