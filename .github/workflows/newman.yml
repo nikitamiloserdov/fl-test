@@ -112,6 +112,20 @@ jobs:
           echo "🔗 **HTML Report:**" >> $GITHUB_STEP_SUMMARY
           echo "https://nikitamiloserdov.github.io/fl-test/runs/${RUN_ID}/" >> $GITHUB_STEP_SUMMARY
 
+
+      - name: 🔥 FINAL DEBUG
+        if: always()
+        run: |
+          echo "PWD:"
+          pwd
+          echo "ROOT:"
+          ls -la
+          echo "SCRIPTS:"
+          ls -la scripts
+          echo "FIND telegram:"
+          find . -iname "*telegram*"
+   
+
       # 🆕 🐍 Setup Python
       - name: 🐍 Setup Python
         if: always()
