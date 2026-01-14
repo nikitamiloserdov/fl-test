@@ -176,3 +176,19 @@ jobs:
           git add runs .nojekyll
           git commit -m "deploy run ${RUN_ID}" || echo "Nothing to commit"
           git push origin gh-pages
+
+
+      # =========================================================
+      # 🧾 Publish workflow summary (кратко и по делу)
+      # =========================================================
+      - name: 🧾 Publish workflow summary
+        if: always()
+        run: |
+          echo "## 🧪 Flipper API – Newman" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Тип прогона:** ${RUN_TYPE}" >> $GITHUB_STEP_SUMMARY
+          echo "**Статус:** ${GITHUB_JOB_STATUS}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **HTML Report:**" >> $GITHUB_STEP_SUMMARY
+          echo "https://nikitamiloserdov.github.io/fl-test/runs/${RUN_ID}/" >> $GITHUB_STEP_SUMMARY
+
