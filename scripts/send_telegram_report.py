@@ -6,6 +6,7 @@ BOT_TOKEN = os.environ["TGBOT"]
 CHAT_ID = os.environ["CHATID"]
 RUN_ID = os.environ["RUN_ID"]
 REPO = os.environ.get("GITHUB_REPOSITORY", "unknown")
+ALLURE_LAUNCH_URL = os.environ.get("ALLURE_LAUNCH_URL")
 
 REPORT_PATH = "reports/newman-report.xml"
 
@@ -26,6 +27,7 @@ message = f"""
 🚀 Прогон коллекции Flipper завершен
 
 Repo: {REPO}
+Тип прогона: {RUN_TYPE}
 Branch: main
 Status: {status}
 
@@ -36,8 +38,15 @@ Tests summary:
 
 Links:
 • 🔗 HTML Report:
-https://nikitamiloserdov.github.io/fl-test/runs/{RUN_ID}/
+https://nikitamiloserdov.github.io/fl-test/runs/{RUN_ID}__{RUN_TYPE}/
 """.strip()
+
+if ALLURE_LAUNCH_URL:
+    message += f"""
+
+• 📊 Allure TestOps:
+{ALLURE_LAUNCH_URL}
+"""
 
 response = requests.post(
     f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
