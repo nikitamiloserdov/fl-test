@@ -11,6 +11,11 @@ jobs:
   newman:
     runs-on: ubuntu-latest
 
+    permissions:
+       checks: write
+       contents: read
+       pull-requests: read
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
