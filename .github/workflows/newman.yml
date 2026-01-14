@@ -147,13 +147,13 @@ jobs:
           export ALLURE_ENDPOINT=${TESTOPS_ENDPOINT}
           export ALLURE_TOKEN=${TESTOPS_TOKEN}
 
-          LAUNCH_URL=$(allurectl upload reports/newman-report.xml \
+          allurectl upload reports/newman-report.xml \
             --project-id ${TESTOPS_PROJECT_ID} \
             --launch-name "Flipper API • ${RUN_TYPE} • ${RUN_ID}" \
-            --launch-tags "api,newman,${RUN_TYPE}" \
-            | grep -Eo 'https://[^ ]+')
+            --launch-tags "api,newman,${RUN_TYPE}"
 
-          echo "ALLURE_LAUNCH_URL=$LAUNCH_URL" >> $GITHUB_ENV
+          # Формируем ссылку вручную (СТАБИЛЬНО)
+          echo "ALLURE_LAUNCH_URL=${TESTOPS_ENDPOINT}/project/${TESTOPS_PROJECT_ID}/launches" >> $GITHUB_ENV
 
 
       # =========================================================
