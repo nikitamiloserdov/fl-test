@@ -6,63 +6,52 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
 
 jobs:
   newman:
     runs-on: ubuntu-latest
 
-    # 🔐 Права:
-    # - contents: write → пуш в gh-pages
-    # - checks: write → JUnit summary
     permissions:
        checks: write
        contents: write
        pull-requests: read
 
     steps:
-      # 📥 Клонируем репозиторий
+      # 📥 Checkout
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      # 🟢 Устанавливаем Node.js (нужен для Newman)
+      # 🟢 Node.js
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 📦 Устанавливаем Newman
+      # 📦 Newman
       - name: 📦 Install Newman
         run: npm install -g newman
 
-      # 🧾 Устанавливаем HTML-репортёр
+      # 🧾 HTML reporter
       - name: 🧾 Install Newman HTML Reporter
         run: npm install -g newman-reporter-htmlextra
 
-      # 🔍 Диагностика структуры репозитория
-      # Полезно, если CI "не видит" файлы
+      # 🔍 Debug
       - name: 🔍 Debug repository structure
         run: |
-          echo "Current directory:"
           pwd
-          echo "Root files:"
           ls -la
-          echo "Postman folder:"
           ls -la postman || true
 
-      # 🆔 ШАГ 1 — Генерация уникального RUN_ID
-      # Используется для:
-      # - истории запусков
-      # - формирования ссылок /runs/<RUN_ID>/
+      # 🆔 RUN_ID
       - name: 🆔 Generate RUN_ID
         run: |
           RUN_ID=$(date +"%Y-%m-%d_%H-%M-%S")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Run ID: $RUN_ID"
 
-      # ▶️ Запуск Postman коллекции
-      # ❗ ВАЖНО:
-      # continue-on-error: true
-      # → тесты могут упасть, но job НЕ прерывается
+      # ▶️ Newman run
       - name: ▶️ Run Postman collection
         continue-on-error: true
         run: |
@@ -76,10 +65,9 @@ jobs:
             --reporter-htmlextra-export reports/newman-report.html \
             --reporter-junit-export reports/newman-report.xml
 
-          # 📁 Кладём HTML-отчёт в папку конкретного запуска
           cp reports/newman-report.html public/runs/${RUN_ID}/index.html
 
-      # 📤 Загружаем отчёты как artifacts (для скачивания)
+      # 📤 Artifacts
       - name: 📤 Upload Newman reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,43 +75,35 @@ jobs:
           name: newman-reports
           path: reports/
 
-      # 📊 Публикуем JUnit результаты в GitHub Summary
-      # Работает даже если тесты упали
-      - name: 📊 Publish test results (JUnit → Summary)
+      # 📊 JUnit summary
+      - name: 📊 Publish test results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: reports/newman-report.xml
 
-      # 🚀 ШАГ 2 — Деплой HTML-отчётов в GitHub Pages
-      # ❗ Выполняется ВСЕГДА, даже если тесты упали
+      # 🚀 Deploy Pages
       - name: 🚀 Deploy to GitHub Pages
         if: always()
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          # 🔒 Сохраняем отчёты во временную папку
           cp -r public /tmp/public
 
-          # 🌿 Переключаемся на gh-pages (или создаём с нуля)
           git fetch origin gh-pages || true
           git checkout gh-pages || git checkout --orphan gh-pages
 
-          # 📂 Убеждаемся, что runs существует
           mkdir -p runs
-
-          # ➕ Добавляем НОВЫЙ запуск (не трогаем старые)
           cp -r /tmp/public/runs/${RUN_ID} runs/
 
-          # 🚫 Отключаем Jekyll (обязательно)
           touch .nojekyll
 
           git add runs .nojekyll
           git commit -m "deploy: ${RUN_ID}" || echo "Nothing to commit"
           git push origin gh-pages
 
-      # 🔗 Публикуем ссылку на конкретный RUN в Summary
+      # 🔗 Summary link
       - name: 🔗 Publish report link to Summary
         if: always()
         run: |
@@ -131,3 +111,25 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔗 **HTML Report:**" >> $GITHUB_STEP_SUMMARY
           echo "https://nikitamiloserdov.github.io/fl-test/runs/${RUN_ID}/" >> $GITHUB_STEP_SUMMARY
+
+      # 🆕 🐍 Setup Python
+      - name: 🐍 Setup Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 🆕 📦 Install Python deps
+      - name: 📦 Install Python dependencies
+        if: always()
+        run: pip install requests
+
+      # 🆕 📩 Send Telegram report
+      - name: 📩 Send Telegram report
+        if: always()
+        env:
+          TGBOT: ${{ secrets.TGBOT }}
+          CHATID: ${{ secrets.CHATID }}
+          RUN_ID: ${{ env.RUN_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/send_telegram_report.py
