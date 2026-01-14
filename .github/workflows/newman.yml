@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-       checks: write
-       contents: read
-       pull-requests: read
+      contents: write
+      checks: write
+      pull-requests: read
 
     steps:
       - name: 📥 Checkout repository
@@ -41,6 +41,7 @@ jobs:
           echo "Postman folder:"
           ls -la postman || true
 
+      # ▶️ Запуск тестов
       - name: ▶️ Run Postman collection
         run: |
           mkdir -p reports
@@ -52,14 +53,35 @@ jobs:
             --reporter-htmlextra-export reports/newman-report.html \
             --reporter-junit-export reports/newman-report.xml
 
+      # 📤 Artifacts (история для скачивания)
       - name: 📤 Upload Newman reports
         uses: actions/upload-artifact@v4
         with:
           name: newman-reports
           path: reports/
 
+      # 📊 Summary в GitHub (JUnit)
       - name: 📊 Publish test results (JUnit → Summary)
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
           files: reports/newman-report.xml
+
+      # 🕒 Подготовка папки с таймстемпом
+      - name: 🕒 Prepare run folder
+        id: runfolder
+        run: |
+          RUN_ID=$(date +"%Y-%m-%d_%H-%M-%S")
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          mkdir -p gh-pages/runs/$RUN_ID
+          cp reports/newman-report.html gh-pages/runs/$RUN_ID/index.html
+          cp reports/newman-report.html gh-pages/index.html
+
+      # 🌍 Deploy GitHub Pages (с историей)
+      - name: 🌍 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: gh-pages
+          keep_files: true
