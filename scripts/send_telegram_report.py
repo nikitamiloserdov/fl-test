@@ -52,7 +52,8 @@ response = requests.post(
     f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
     json={
         "chat_id": CHAT_ID,
-        "text": message
+        "text": message,
+        "parse_mode": "HTML"
     },
     timeout=10
 )
